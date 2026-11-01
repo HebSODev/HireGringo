@@ -77,7 +77,13 @@ export function makeDeps(overrides: Partial<Deps> = {}): Deps & { repo: MemoryRe
     llm, tts, storage,
     deepgram: { grant: unused('deepgram.grant') as never },
     fetchPage: unused('fetchPage') as never,
-    prompt: async (name) => `PROMPT:${name} {{job}} {{resume}} {{remainingSeconds}} {{phase}} {{transcript}} {{speechStats}} {{text}}`,
+    pdfToText: unused('pdfToText') as never,
+    prompt: async (name) => ({
+      interviewer: 'INTERVIEWER job={{job}} resume={{resume}} remaining={{remainingSeconds}} phase={{phase}}',
+      evaluator: 'EVALUATOR job={{job}} resume={{resume}} transcript={{transcript}} stats={{speechStats}}',
+      'extract-job': 'EXTRACT_JOB {{text}}',
+      'extract-resume': 'EXTRACT_RESUME {{text}}',
+    })[name],
     now: () => NOW,
     ...overrides,
   } as Deps & { repo: MemoryRepo };

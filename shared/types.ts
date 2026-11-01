@@ -57,6 +57,7 @@ export type ApiErrorCode =
   | 'interview_not_active'
   | 'time_over'
   | 'resume_unreadable'
+  | 'job_unreadable'
   | 'not_tech_role'
   | 'url_unreadable'
   | 'evaluation_failed'

@@ -7,6 +7,7 @@ import { supabaseRepo, type Repo } from './repo';
 import { supabaseStorage } from './storage';
 import { deepgramTts } from './tts';
 import { fetchPage } from './extract/url';
+import { pdfToText } from './extract/pdf';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -36,6 +37,7 @@ export type Deps = {
   storage: Storage;
   deepgram: { grant(ttlSeconds: number): Promise<{ token: string; expiresIn: number }> };
   fetchPage: (url: string) => Promise<string>;
+  pdfToText: (bytes: Uint8Array) => Promise<string>;
   prompt: typeof loadPrompt;
   now: () => Date;
 };
@@ -62,6 +64,7 @@ export function realDeps(): Deps {
     storage: supabaseStorage(db),
     deepgram: { grant: deepgramGrant(env('DEEPGRAM_API_KEY')) },
     fetchPage,
+    pdfToText,
     prompt: loadPrompt,
     now: () => new Date(),
   };
