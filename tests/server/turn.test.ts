@@ -27,22 +27,32 @@ describe('POST /api/interviews/turn', () => {
     expect(deps.repo.turns.get(interview.id)!.at(-1)).toMatchObject({ role: 'interviewer', seq: 0, text: 'Hello there. Tell me about yourself.' });
   });
 
-  it('salva o turno do candidato antes de chamar o LLM', async () => {
+  it('salva o turno do candidato e passa a fala dele ao LLM', async () => {
     const { deps, interview, handler } = setup(['Good. ']);
     deps.repo.turns.set(interview.id, [{ seq: 0, role: 'interviewer', text: 'Tell me about yourself.', metrics: null }]);
-    let turnsSeenByLlm = 0;
-    deps.llm.stream = vi.fn(() => {
-      turnsSeenByLlm = deps.repo.turns.get(interview.id)!.length;
+    let lastMessage = '';
+    deps.llm.stream = vi.fn((messages) => {
+      lastMessage = messages.at(-1)!.content;
       return fromArray(['Good, thanks. ']);
     });
     const res = await handler(post({ interviewId: interview.id, text: 'I am a backend dev.', metrics }));
     await readNdjson(res);
-    expect(turnsSeenByLlm).toBe(2);
+    expect(lastMessage).toBe('I am a backend dev.');
     expect(deps.repo.turns.get(interview.id)).toEqual([
       { seq: 0, role: 'interviewer', text: 'Tell me about yourself.', metrics: null },
       { seq: 1, role: 'candidate', text: 'I am a backend dev.', metrics },
       { seq: 2, role: 'interviewer', text: 'Good, thanks.', metrics: null },
     ]);
+  });
+
+  it('falha ao salvar a fala do candidato vira evento de erro e não salva a do entrevistador', async () => {
+    const { deps, interview, handler } = setup(['Good, thanks. ']);
+    deps.repo.turns.set(interview.id, [{ seq: 0, role: 'interviewer', text: 'Hi there.', metrics: null }]);
+    const addTurn = deps.repo.addTurn.bind(deps.repo);
+    deps.repo.addTurn = vi.fn(async (id, turn) => { if (turn.role === 'candidate') throw new Error('db down'); return addTurn(id, turn); });
+    const events = await readNdjson(await handler(post({ interviewId: interview.id, text: 'Hello.', metrics })));
+    expect(events.at(-1)).toEqual({ type: 'error', code: 'upstream_failed' });
+    expect(deps.repo.turns.get(interview.id)).toHaveLength(1);
   });
 
   it('mantém a ordem do áudio quando o TTS da 1ª frase demora', async () => {
@@ -134,5 +144,12 @@ describe('POST /api/interviews/turn', () => {
     deps.repo.turns.set(interview.id, [{ seq: 0, role: 'interviewer', text: 'Hi.', metrics: null }]);
     const res = await handler(post({ interviewId: interview.id, text: 'a'.repeat(5_001), metrics }));
     expect(res.status).toBe(400);
+  });
+
+  it('o turno do entrevistador termina na primeira pergunta', async () => {
+    const { interview, handler, deps } = setup(['Okay, understood. What replication setup did you choose?During that migration, what was your role? ', 'Thank you, Ana. [END]']);
+    const events = await readNdjson(await handler(post({ interviewId: interview.id, text: null, metrics: null })));
+    expect(events.filter((e) => e.type === 'text').map((e) => e.text)).toEqual(['Okay, understood.', 'What replication setup did you choose?']);
+    expect(deps.repo.turns.get(interview.id)!.at(-1)!.text).toBe('Okay, understood. What replication setup did you choose?');
   });
 });

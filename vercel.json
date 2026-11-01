@@ -1,10 +1,7 @@
 {
   "framework": "vite",
   "functions": {
-    "api/**/*.ts": { "includeFiles": "prompts/**" },
-    "api/interviews/turn.ts": { "maxDuration": 60, "includeFiles": "prompts/**" },
-    "api/interviews/finish.ts": { "maxDuration": 60, "includeFiles": "prompts/**" },
-    "api/extract/*.ts": { "maxDuration": 30, "includeFiles": "prompts/**" }
+    "api/**/*.ts": { "maxDuration": 60, "includeFiles": "prompts/**" }
   },
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }

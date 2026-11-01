@@ -8,7 +8,7 @@ import { buildInterviewerMessages, END_MARKER } from '../interviewer';
 import { TurnMetricsSchema } from '../schemas';
 import { createSentenceChunker } from '../sentenceChunker';
 
-/** O entrevistador fala no máximo isso por turno; o resto do stream do LLM é descartado. */
+/** O entrevistador fala no máximo isso por turno, e para na primeira pergunta; o resto do stream é descartado. */
 const MAX_SENTENCES = 4;
 /** [END] só encerra a entrevista no último minuto, para o modelo não encerrar cedo demais. */
 const END_ALLOWED_FROM_SEC = INTERVIEW_SECONDS - 60;
@@ -52,21 +52,27 @@ export function createTurnHandler(deps: Deps) {
   return withErrors(async (req) => {
     const { userId } = await deps.auth(req);
     const body = await readJson(req, Body);
-    const interview = await deps.repo.getInterview(userId, body.interviewId);
+    const [interview, turns, template] = await Promise.all([
+      deps.repo.getInterview(userId, body.interviewId),
+      deps.repo.listTurns(body.interviewId),
+      deps.prompt('interviewer'),
+    ]);
     if (!interview) throw new ApiError(404, 'not_found');
     if (interview.status !== 'in_progress') throw new ApiError(409, 'interview_not_active');
     const elapsedSec = (deps.now().getTime() - interview.startedAt.getTime()) / 1000;
     if (elapsedSec > HARD_LIMIT_SECONDS) throw new ApiError(409, 'time_over');
 
-    const turns = await deps.repo.listTurns(interview.id);
     if (body.text === null && turns.length > 0) throw new ApiError(400, 'bad_request');
+    // A fala do candidato é salva em paralelo com o LLM (latência); a do entrevistador só depois dela.
+    let savedCandidate: Promise<void> = Promise.resolve();
     if (body.text !== null) {
       const candidate = { seq: turns.length, role: 'candidate' as const, text: body.text, metrics: body.metrics };
-      await deps.repo.addTurn(interview.id, candidate);
+      savedCandidate = deps.repo.addTurn(interview.id, candidate);
+      savedCandidate.catch(() => {});
       turns.push(candidate);
     }
 
-    const messages = buildInterviewerMessages({ template: await deps.prompt('interviewer'), interview, turns, elapsedSec });
+    const messages = buildInterviewerMessages({ template, interview, turns, elapsedSec });
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream<Uint8Array>({
@@ -76,14 +82,17 @@ export function createTurnHandler(deps: Deps) {
         const queue: { text: string; audio: AsyncIterable<Uint8Array> }[] = [];
         let ended = false;
         let sentences = 0;
+        let asked = false;
         let seq = 0;
+        const finished = () => asked || sentences >= MAX_SENTENCES;
 
         const enqueue = (raw: string) => {
-          if (sentences >= MAX_SENTENCES) return;
+          if (finished()) return;
           if (raw.includes(END_MARKER) && elapsedSec >= END_ALLOWED_FROM_SEC) ended = true;
           const text = raw.replaceAll(END_MARKER, '').trim();
           if (!text) return;
           sentences++;
+          if (text.endsWith('?')) asked = true;
           queue.push({ text, audio: prefetch(deps.tts.synthesize(text)) });
         };
 
@@ -107,16 +116,18 @@ export function createTurnHandler(deps: Deps) {
           for await (const delta of deps.llm.stream(messages)) {
             chunker.push(delta).forEach(enqueue);
             await drain();
-            if (sentences >= MAX_SENTENCES) break;
+            if (finished()) break;
           }
           chunker.flush().forEach(enqueue);
           await drain();
+          await savedCandidate;
           if (ended) emit({ type: 'end' });
         } catch (e) {
           console.error(e);
           emit({ type: 'error', code: 'upstream_failed' });
         } finally {
-          if (spoken.length) {
+          const candidateSaved = await savedCandidate.then(() => true, () => false);
+          if (spoken.length && candidateSaved) {
             await deps.repo.addTurn(interview.id, { seq: turns.length, role: 'interviewer', text: spoken.join(' '), metrics: null })
               .catch((e) => console.error(e));
           }

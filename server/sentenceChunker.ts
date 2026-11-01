@@ -8,7 +8,9 @@ export function createSentenceChunker() {
       buf += delta;
       const out: string[] = [];
       let start = 0;
-      for (const m of buf.matchAll(/[.!?]+(?=\s)/g)) {
+      // Fim de frase: pontuação seguida de maiúscula/dígito (com ou sem espaço — o modelo às vezes cola as
+      // frases). Minúscula depois do ponto (Node.js, e.g. vitest) não corta.
+      for (const m of buf.matchAll(/[.!?]+(?=\s+["'“(]?[A-Z0-9]|["'“(]?[A-Z])/g)) {
         const end = m.index + m[0].length;
         const sentence = buf.slice(start, end).trim();
         if (sentence.length >= MIN_SENTENCE) {
