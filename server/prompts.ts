@@ -15,7 +15,8 @@ const cache = new Map<PromptName, string>();
 export async function loadPrompt(name: PromptName): Promise<string> {
   const hit = cache.get(name);
   if (hit) return hit;
-  const text = await readFile(path.join(process.cwd(), 'prompts', `${name}.md`), 'utf8');
+  const raw = await readFile(path.join(process.cwd(), 'prompts', `${name}.md`), 'utf8');
+  const text = raw.replace(/<!--[\s\S]*?-->/g, '').trim();
   cache.set(name, text);
   return text;
 }

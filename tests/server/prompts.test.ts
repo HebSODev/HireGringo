@@ -9,3 +9,12 @@ describe('renderPrompt', () => {
     expect(() => renderPrompt('{{missing}}', {})).toThrow(/missing/);
   });
 });
+
+describe('loadPrompt', () => {
+  it('remove os comentários HTML destinados a quem edita o prompt', async () => {
+    const { loadPrompt } = await import('../../server/prompts');
+    const text = await loadPrompt('interviewer');
+    expect(text).not.toContain('<!--');
+    expect(text).toContain('{{remainingSeconds}}');
+  });
+});
