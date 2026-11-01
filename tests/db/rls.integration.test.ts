@@ -14,7 +14,7 @@ const evaluation = {
   tips: { technical: ['x'], english: [{ said: 'a', better: 'b', why: 'c' }] },
 };
 
-describe.skipIf(!run)('RLS e cota no Supabase', () => {
+describe.skipIf(!run)('RLS e cota no Supabase', { timeout: 30_000 }, () => {
   let admin: SupabaseClient;
   const users: { id: string; client: SupabaseClient }[] = [];
 
