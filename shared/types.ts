@@ -47,21 +47,24 @@ export type Evaluation = {
   tips: { technical: string[]; english: { said: string; better: string; why: string }[] };
 };
 
-export type ApiErrorCode =
-  | 'unauthorized'
-  | 'forbidden'
-  | 'not_found'
-  | 'bad_request'
-  | 'quota_exhausted'
-  | 'too_many_unfinished'
-  | 'interview_not_active'
-  | 'time_over'
-  | 'resume_unreadable'
-  | 'job_unreadable'
-  | 'not_tech_role'
-  | 'url_unreadable'
-  | 'evaluation_failed'
-  | 'upstream_failed';
+export const API_ERROR_CODES = [
+  'unauthorized',
+  'forbidden',
+  'not_found',
+  'bad_request',
+  'quota_exhausted',
+  'too_many_unfinished',
+  'interview_not_active',
+  'time_over',
+  'resume_unreadable',
+  'job_unreadable',
+  'not_tech_role',
+  'url_unreadable',
+  'evaluation_failed',
+  'upstream_failed',
+] as const;
+
+export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 
 /** `audio.data` é base64 de PCM 16-bit little-endian, mono, TTS_SAMPLE_RATE Hz. */
 export type TurnStreamEvent =
