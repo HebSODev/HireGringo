@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Button, Card, ErrorBox, Field, inputClass } from '../components/ui';
 import { useSession } from '../lib/session';
 import { supabase } from '../lib/supabase';
+import { signUpErrorMessage } from '../lib/authErrors';
 
 export function AuthPage() {
   const { session } = useSession();
@@ -31,8 +32,10 @@ export function AuthPage() {
         password,
         options: { data: { consent_at: new Date().toISOString() }, emailRedirectTo: window.location.origin },
       });
-      if (error) setError(error.message.includes('Password') ? 'A senha precisa ter pelo menos 6 caracteres.' : 'Não foi possível criar a conta. Confira o e-mail e tente de novo.');
-      else setInfo('Conta criada! Enviamos um link de confirmação para o seu e-mail. Confirme e depois entre.');
+      if (error) {
+        console.error('signUp failed', error.code, error.status, error.message);
+        setError(signUpErrorMessage(error));
+      } else setInfo('Conta criada! Enviamos um link de confirmação para o seu e-mail. Confirme e depois entre.');
     }
     setBusy(false);
   }
