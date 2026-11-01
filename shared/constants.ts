@@ -1,0 +1,9 @@
+export const INTERVIEW_SECONDS = 300;
+export const HARD_LIMIT_SECONDS = 360;
+export const MIN_SECONDS_FOR_RESULT = 120;
+export const FREE_LIMIT = 3;
+export const UNFINISHED_DAILY_LIMIT = 3;
+export const STALE_AFTER_MINUTES = 10;
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const SILENCE_TIMEOUT_MS = 20_000;
+export const TTS_SAMPLE_RATE = 24_000;
