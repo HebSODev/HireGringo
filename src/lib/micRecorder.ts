@@ -11,9 +11,10 @@ export function createRecorder(stream: MediaStream, onChunk: (chunk: Blob) => vo
     start() { recorder.start(250); recorder.pause(); },
     pause() { if (recorder.state === 'recording') recorder.pause(); },
     resume() { if (recorder.state === 'paused') recorder.resume(); },
-    stop() {
+    /** `releaseMic: false` mantém o microfone aberto para recriar o gravador (novo cabeçalho WebM). */
+    stop({ releaseMic = true } = {}) {
       if (recorder.state !== 'inactive') recorder.stop();
-      stream.getTracks().forEach((t) => t.stop());
+      if (releaseMic) stream.getTracks().forEach((t) => t.stop());
     },
   };
 }

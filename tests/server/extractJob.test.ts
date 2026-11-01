@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createExtractJobHandler } from '../../server/handlers/extractJob';
-import { job, makeDeps, post, USER } from '../helpers/fakes';
+import { job, makeDeps, post, USER, FILE } from '../helpers/fakes';
 
 const longText = 'We are hiring a Senior Backend Engineer with Node.js. '.repeat(6);
 
@@ -63,33 +63,49 @@ describe('POST /api/extract/job', () => {
 
   it('print usa o modelo de visão', async () => {
     const d = deps();
-    const res = await createExtractJobHandler(d)(post({ kind: 'file', path: `${USER}/vaga.png`, mime: 'image/png' }));
+    const res = await createExtractJobHandler(d)(post({ kind: 'file', path: `${USER}/${FILE}.png`, mime: 'image/png' }));
     expect(res.status).toBe(200);
     expect(d.llm.vision).toHaveBeenCalledWith({ base64: 'iVBORw==', mime: 'image/png' }, expect.any(String));
-    expect(d.storage.download).toHaveBeenCalledWith('job-files', `${USER}/vaga.png`);
+    expect(d.storage.download).toHaveBeenCalledWith('job-files', `${USER}/${FILE}.png`);
   });
 
   it('PDF usa extração de texto', async () => {
     const d = deps();
-    const res = await createExtractJobHandler(d)(post({ kind: 'file', path: `${USER}/vaga.pdf`, mime: 'application/pdf' }));
+    const res = await createExtractJobHandler(d)(post({ kind: 'file', path: `${USER}/${FILE}.pdf`, mime: 'application/pdf' }));
     expect(res.status).toBe(200);
     expect(d.pdfToText).toHaveBeenCalled();
     expect(d.llm.vision).not.toHaveBeenCalled();
   });
 
   it('PDF de vaga sem texto é recusado', async () => {
-    const res = await createExtractJobHandler(deps({ pdfText: '' }))(post({ kind: 'file', path: `${USER}/vaga.pdf`, mime: 'application/pdf' }));
+    const res = await createExtractJobHandler(deps({ pdfText: '' }))(post({ kind: 'file', path: `${USER}/${FILE}.pdf`, mime: 'application/pdf' }));
     expect(res.status).toBe(422);
     expect(await res.json()).toEqual({ error: 'job_unreadable' });
   });
 
   it('formato não suportado é 400', async () => {
-    const res = await createExtractJobHandler(deps())(post({ kind: 'file', path: `${USER}/vaga.gif`, mime: 'image/gif' }));
+    const res = await createExtractJobHandler(deps())(post({ kind: 'file', path: `${USER}/${FILE}.gif`, mime: 'image/gif' }));
     expect(res.status).toBe(400);
   });
 
   it('arquivo de outro usuário é 403', async () => {
-    const res = await createExtractJobHandler(deps())(post({ kind: 'file', path: 'other/vaga.png', mime: 'image/png' }));
+    const res = await createExtractJobHandler(deps())(post({ kind: 'file', path: `other/${FILE}.png`, mime: 'image/png' }));
     expect(res.status).toBe(403);
+  });
+
+  it('texto gigante é recusado', async () => {
+    const d = deps();
+    const res = await createExtractJobHandler(d)(post({ kind: 'text', text: 'a'.repeat(20_001) }));
+    expect(res.status).toBe(400);
+    expect(d.llm.json).not.toHaveBeenCalled();
+  });
+
+  it('quem esgotou a cota não gasta extração', async () => {
+    const d = deps();
+    d.repo.freeUsed.set(USER, 3);
+    const res = await createExtractJobHandler(d)(post({ kind: 'text', text: longText }));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'quota_exhausted' });
+    expect(d.llm.json).not.toHaveBeenCalled();
   });
 });

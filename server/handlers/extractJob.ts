@@ -1,15 +1,18 @@
 import { z } from 'zod';
+import { MAX_JOB_TEXT_CHARS } from '../../shared/constants';
+import { assertCanExtract } from '../quota';
 import type { Deps } from '../deps';
 import { ApiError, json, withErrors } from '../errors';
 import { htmlToText } from '../extract/html';
 import { assertFetchableUrl } from '../extract/url';
 import { readJson } from '../http';
+import { assertOwnedPath } from '../paths';
 import { renderPrompt } from '../prompts';
 import { JobSummarySchema } from '../schemas';
 
 const Body = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('text'), text: z.string().trim().min(1) }),
-  z.object({ kind: z.literal('url'), url: z.string().min(1) }),
+  z.object({ kind: z.literal('text'), text: z.string().trim().min(1).max(MAX_JOB_TEXT_CHARS) }),
+  z.object({ kind: z.literal('url'), url: z.string().min(1).max(2048) }),
   z.object({ kind: z.literal('file'), path: z.string().min(1), mime: z.enum(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']) }),
 ]);
 
@@ -21,6 +24,7 @@ export function createExtractJobHandler(deps: Deps) {
   return withErrors(async (req) => {
     const { userId } = await deps.auth(req);
     const body = await readJson(req, Body);
+    await assertCanExtract(deps.repo, userId);
     const template = await deps.prompt('extract-job');
 
     const call = async (fn: () => Promise<unknown>) => {
@@ -48,14 +52,14 @@ export function createExtractJobHandler(deps: Deps) {
         throw new ApiError(422, 'url_unreadable');
       }
       if (text.length < MIN_TEXT) throw new ApiError(422, 'url_unreadable');
-      raw = await fromText(text);
+      raw = await fromText(text.slice(0, MAX_JOB_TEXT_CHARS));
     } else {
-      if (!body.path.startsWith(`${userId}/`)) throw new ApiError(403, 'forbidden');
+      assertOwnedPath(userId, body.path, 'job-files');
       const bytes = await deps.storage.download('job-files', body.path);
       if (body.mime === 'application/pdf') {
         const text = (await deps.pdfToText(bytes)).trim();
         if (text.length < MIN_TEXT) throw new ApiError(422, 'job_unreadable');
-        raw = await fromText(text);
+        raw = await fromText(text.slice(0, MAX_JOB_TEXT_CHARS));
       } else {
         const image = { base64: Buffer.from(bytes).toString('base64'), mime: body.mime };
         const instruction = renderPrompt(template, { text: IMAGE_NOTE });

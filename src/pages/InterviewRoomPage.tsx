@@ -49,6 +49,8 @@ export function InterviewRoomPage() {
   const player = useRef<ReturnType<typeof createPcmPlayer> | null>(null);
   const queue = useRef<ReturnType<typeof createAudioQueue> | null>(null);
   const recorder = useRef<ReturnType<typeof createRecorder> | null>(null);
+  const micStream = useRef<MediaStream | null>(null);
+  const unmounted = useRef(false);
   const deepgram = useRef<DeepgramConnection | null>(null);
   const reconnected = useRef(false);
   const words = useRef<DgWord[]>([]);
@@ -61,6 +63,7 @@ export function InterviewRoomPage() {
     if (silenceTimer.current) clearTimeout(silenceTimer.current);
     recorder.current?.stop();
     recorder.current = null;
+    micStream.current?.getTracks().forEach((t) => t.stop());
     deepgram.current?.close();
     deepgram.current = null;
     player.current?.stop();
@@ -68,7 +71,7 @@ export function InterviewRoomPage() {
     audioCtx.current = null;
   }, []);
 
-  useEffect(() => teardown, [teardown]);
+  useEffect(() => () => { unmounted.current = true; teardown(); }, [teardown]);
 
   // ---------- Turno do entrevistador ----------
   const runTurn = useCallback(async (text: string | null, metrics: TurnMetrics | null) => {
@@ -113,12 +116,14 @@ export function InterviewRoomPage() {
     const latency = firstInterimAt.current ? (firstInterimAt.current - listeningSince.current) / 1000 : null;
     const metrics = computeTurnMetrics(said, { responseLatencySec: latency === null ? null : Math.round(latency * 10) / 10 });
     if (statusRef.current !== 'listening') { turnLock.current = false; return; }
+    // Atualiza já: um UtteranceEnd ou o timer de silêncio que chegue antes do próximo render não manda outro turno.
+    statusRef.current = 'interviewer_thinking';
     dispatch({ type: 'CANDIDATE_TURN_SENT' });
-    turnLock.current = false;
     await runTurn(text, metrics);
   }, [runTurn]);
 
   const startListening = useCallback(() => {
+    turnLock.current = false;
     words.current = [];
     firstInterimAt.current = null;
     listeningSince.current = Date.now();
@@ -153,7 +158,15 @@ export function InterviewRoomPage() {
         if (!unexpected || !active) return;
         if (reconnected.current) { dispatch({ type: 'FAILED', code: 'upstream_failed' }); return; }
         reconnected.current = true;
-        connect().catch(() => dispatch({ type: 'FAILED', code: 'upstream_failed' }));
+        // O WebM só tem cabeçalho no 1º pedaço: um socket novo precisa de um gravador novo.
+        recorder.current?.stop({ releaseMic: false });
+        recorder.current = createRecorder(micStream.current!, (chunk) => deepgram.current?.send(chunk));
+        connect()
+          .then(() => {
+            recorder.current?.start();
+            if (statusRef.current === 'listening') recorder.current?.resume();
+          })
+          .catch(() => dispatch({ type: 'FAILED', code: 'upstream_failed' }));
       },
     });
     deepgram.current = conn;
@@ -163,28 +176,37 @@ export function InterviewRoomPage() {
   // ---------- Início ----------
   async function begin() {
     dispatch({ type: 'MIC_REQUESTED' });
+    // Criado e liberado dentro do clique: fora do gesto, o Safari deixa o áudio suspenso.
+    const ctx = new AudioContext();
+    audioCtx.current = ctx;
+    void ctx.resume();
     let stream: MediaStream;
     try {
       stream = await openMic();
     } catch {
+      void ctx.close();
+      audioCtx.current = null;
       dispatch({ type: 'MIC_DENIED' });
       return;
     }
+    micStream.current = stream;
     dispatch({ type: 'MIC_OK' });
-    audioCtx.current = new AudioContext();
-    player.current = createPcmPlayer(audioCtx.current);
+    player.current = createPcmPlayer(ctx);
     queue.current = createAudioQueue(player.current);
     try {
+      await ctx.resume();
       const started = await api.post<{ interviewId: string }>('/api/interviews/start', setup);
       interviewId.current = started.interviewId;
       startedAt.current = Date.now();
+      if (unmounted.current) return teardown();
       recorder.current = createRecorder(stream, (chunk) => deepgram.current?.send(chunk));
       await connect();
+      if (unmounted.current) return teardown();
       recorder.current.start();
       dispatch({ type: 'STARTED' });
       await runTurn(null, null);
     } catch (e) {
-      stream.getTracks().forEach((t) => t.stop());
+      teardown();
       dispatch({ type: 'FAILED', code: codeOf(e) });
     }
   }
@@ -288,7 +310,7 @@ export function InterviewRoomPage() {
 
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => void sendCandidateTurn()} disabled={state.status !== 'listening'}>Terminei de responder</Button>
-          <Button variant="secondary" disabled={state.status === 'finishing'}
+          <Button variant="secondary" disabled={!active}
             onClick={() => { if (window.confirm('Encerrar a entrevista agora? Com menos de 2 minutos ela não gera resultado.')) dispatch({ type: 'TIME_UP' }); }}>
             Encerrar entrevista
           </Button>

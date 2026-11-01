@@ -8,3 +8,5 @@ export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const SILENCE_TIMEOUT_MS = 20_000;
 export const TTS_SAMPLE_RATE = 24_000;
 export const DEEPGRAM_STT_MODEL = 'nova-3';
+export const MAX_JOB_TEXT_CHARS = 20_000;
+export const MAX_TURN_TEXT_CHARS = 5_000;

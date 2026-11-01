@@ -36,4 +36,8 @@ describe('roomReducer', () => {
     expect(s).toEqual({ status: 'error', error: 'evaluation_failed' });
     expect(roomReducer(s, { type: 'RETRY_FINISH' }).status).toBe('finishing');
   });
+
+  it('não encerra enquanto ainda está conectando (a entrevista ainda não existe)', () => {
+    expect(roomReducer(at('starting'), { type: 'TIME_UP' }).status).toBe('starting');
+  });
 });

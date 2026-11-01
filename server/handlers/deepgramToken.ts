@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HARD_LIMIT_SECONDS } from '../../shared/constants';
 import type { Deps } from '../deps';
 import { ApiError, json, withErrors } from '../errors';
 import { readJson } from '../http';
@@ -12,6 +13,7 @@ export function createDeepgramTokenHandler(deps: Deps) {
     const interview = await deps.repo.getInterview(userId, interviewId);
     if (!interview) throw new ApiError(404, 'not_found');
     if (interview.status !== 'in_progress') throw new ApiError(409, 'interview_not_active');
+    if (deps.now().getTime() - interview.startedAt.getTime() > HARD_LIMIT_SECONDS * 1000) throw new ApiError(409, 'time_over');
     return json(200, await deps.deepgram.grant(30));
   });
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createStartHandler } from '../../server/handlers/start';
-import { job, makeDeps, NOW, post, resume, USER } from '../helpers/fakes';
+import { job, makeDeps, NOW, post, resume, USER, FILE } from '../helpers/fakes';
 
-const body = { job, resume, resumePath: `${USER}/cv.pdf` };
+const body = { job, resume, resumePath: `${USER}/${FILE}.pdf` };
 
 describe('POST /api/interviews/start', () => {
   it('exige login', async () => {
@@ -12,8 +12,20 @@ describe('POST /api/interviews/start', () => {
 
   it('marca entrevistas paradas como abandonadas antes de contar', async () => {
     const deps = makeDeps();
-    await createStartHandler(deps)(post(body));
-    expect(deps.repo.abandonStaleCalls).toEqual([new Date(NOW.getTime() - 10 * 60_000)]);
+    const stale = deps.repo.seed({ startedAt: new Date(NOW.getTime() - 11 * 60_000) });
+    deps.repo.freeUsed.set(USER, 2);
+    const res = await createStartHandler(deps)(post(body));
+    expect(res.status).toBe(200);
+    expect(deps.repo.interviews.get(stale.id)!.status).toBe('abandoned');
+  });
+
+  it('entrevista em andamento recente conta na cota (abrir várias abas não burla o limite)', async () => {
+    const deps = makeDeps();
+    deps.repo.freeUsed.set(USER, 2);
+    deps.repo.seed({ startedAt: new Date(NOW.getTime() - 60_000) });
+    const res = await createStartHandler(deps)(post(body));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'quota_exhausted' });
   });
 
   it('recusa quando a cota grátis acabou', async () => {
@@ -34,7 +46,7 @@ describe('POST /api/interviews/start', () => {
   });
 
   it('recusa currículo de outro usuário', async () => {
-    const res = await createStartHandler(makeDeps())(post({ ...body, resumePath: 'other-user/x.pdf' }));
+    const res = await createStartHandler(makeDeps())(post({ ...body, resumePath: `other-user/${FILE}.pdf` }));
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'forbidden' });
   });

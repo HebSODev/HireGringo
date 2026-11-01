@@ -78,4 +78,28 @@ describe.skipIf(!run)('RLS e cota no Supabase', () => {
     expect((await admin.from('interviews').select('id').eq('id', id)).data).toEqual([]);
     expect(await read()).toBe(1);
   });
+
+  it('inícios em paralelo não passam da cota grátis', async () => {
+    const a = await makeUser('f');
+    await admin.from('profiles').update({ free_interviews_used: 2 }).eq('id', a.id);
+    const now = new Date();
+    const call = () => admin.rpc('start_interview', {
+      p_user: a.id, p_job: job, p_resume: resume, p_resume_path: `${a.id}/cv.pdf`,
+      p_started_at: now.toISOString(), p_stale_before: new Date(now.getTime() - 600_000).toISOString(),
+      p_unfinished_since: new Date(now.getTime() - 86_400_000).toISOString(), p_free_limit: 3, p_unfinished_limit: 3,
+    });
+    const results = await Promise.all([call(), call(), call(), call()]);
+    expect(results.map((r) => r.data.ok).filter(Boolean)).toHaveLength(1);
+  });
+
+  it('usuário não chama start_interview nem complete_interview direto', async () => {
+    const a = await makeUser('g');
+    const r1 = await a.client.rpc('start_interview', {
+      p_user: a.id, p_job: job, p_resume: resume, p_resume_path: 'x', p_started_at: new Date().toISOString(),
+      p_stale_before: new Date().toISOString(), p_unfinished_since: new Date().toISOString(), p_free_limit: 99, p_unfinished_limit: 99,
+    });
+    expect(r1.error).not.toBeNull();
+    const r2 = await a.client.rpc('complete_interview', { p_interview_id: crypto.randomUUID(), p_evaluation: evaluation });
+    expect(r2.error).not.toBeNull();
+  });
 });

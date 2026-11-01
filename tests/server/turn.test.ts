@@ -128,4 +128,11 @@ describe('POST /api/interviews/turn', () => {
     );
     expect(deps.repo.turns.get(interview.id)!.at(-1)!.text).toBe('One sentence here. Two sentence here. Three sentence here. Four sentence here.');
   });
+
+  it('fala do candidato gigante é recusada', async () => {
+    const { deps, interview, handler } = setup();
+    deps.repo.turns.set(interview.id, [{ seq: 0, role: 'interviewer', text: 'Hi.', metrics: null }]);
+    const res = await handler(post({ interviewId: interview.id, text: 'a'.repeat(5_001), metrics }));
+    expect(res.status).toBe(400);
+  });
 });

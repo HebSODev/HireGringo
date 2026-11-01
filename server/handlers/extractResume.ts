@@ -1,23 +1,28 @@
 import { z } from 'zod';
+import { assertCanExtract } from '../quota';
 import type { Deps } from '../deps';
 import { ApiError, json, withErrors } from '../errors';
 import { readJson } from '../http';
+import { assertOwnedPath } from '../paths';
 import { renderPrompt } from '../prompts';
 import { ResumeSummarySchema } from '../schemas';
 
 const Body = z.object({ path: z.string().min(1) });
 const MIN_TEXT = 200;
+const MAX_RESUME_TEXT_CHARS = 30_000;
 
 export function createExtractResumeHandler(deps: Deps) {
   return withErrors(async (req) => {
     const { userId } = await deps.auth(req);
     const { path } = await readJson(req, Body);
-    if (!path.startsWith(`${userId}/`)) throw new ApiError(403, 'forbidden');
+    assertOwnedPath(userId, path, 'resumes');
+    await assertCanExtract(deps.repo, userId);
 
     const text = (await deps.pdfToText(await deps.storage.download('resumes', path))).trim();
     if (text.length < MIN_TEXT) throw new ApiError(422, 'resume_unreadable');
+    const capped = text.slice(0, MAX_RESUME_TEXT_CHARS);
 
-    const content = renderPrompt(await deps.prompt('extract-resume'), { text });
+    const content = renderPrompt(await deps.prompt('extract-resume'), { text: capped });
     let raw: unknown;
     try {
       raw = await deps.llm.json([{ role: 'system', content }]);

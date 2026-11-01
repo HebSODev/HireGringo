@@ -1,12 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { FREE_LIMIT, UNFINISHED_DAILY_LIMIT } from '../shared/constants';
 import type { Evaluation, Interview, JobSummary, ResumeSummary, Turn } from '../shared/types';
+
+export type StartInput = { job: JobSummary; resume: ResumeSummary; resumePath: string; startedAt: Date };
+/** `staleBefore`: in_progress iniciadas antes disso viram abandoned. `unfinishedSince`: janela das inacabadas. */
+export type StartRules = { staleBefore: Date; unfinishedSince: Date };
+export type StartResult = { ok: true; interview: Interview } | { ok: false; code: 'quota_exhausted' | 'too_many_unfinished' };
 
 export interface Repo {
   getFreeUsed(userId: string): Promise<number>;
-  abandonStale(userId: string, olderThan: Date): Promise<void>;
-  /** Entrevistas `in_progress` ou `abandoned` criadas desde `since`. */
-  countUnfinishedSince(userId: string, since: Date): Promise<number>;
-  createInterview(userId: string, input: { job: JobSummary; resume: ResumeSummary; resumePath: string; startedAt: Date }): Promise<Interview>;
+  /** Abandona as paradas, aplica a cota e cria a entrevista numa única transação (RPC start_interview). */
+  startInterview(userId: string, input: StartInput, rules: StartRules): Promise<StartResult>;
   getInterview(userId: string, id: string): Promise<Interview | null>;
   listTurns(interviewId: string): Promise<Turn[]>;
   addTurn(interviewId: string, turn: Turn): Promise<void>;
@@ -37,22 +41,15 @@ export function supabaseRepo(db: SupabaseClient): Repo {
       const row = check(await db.from('profiles').select('free_interviews_used').eq('id', userId).maybeSingle());
       return row?.free_interviews_used ?? 0;
     },
-    async abandonStale(userId, olderThan) {
-      check(await db.from('interviews').update({ status: 'abandoned', ended_at: new Date().toISOString() })
-        .eq('user_id', userId).eq('status', 'in_progress').lt('started_at', olderThan.toISOString()));
-    },
-    async countUnfinishedSince(userId, since) {
-      const res = await db.from('interviews').select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).in('status', ['in_progress', 'abandoned']).gte('created_at', since.toISOString());
-      if (res.error) throw res.error;
-      return res.count ?? 0;
-    },
-    async createInterview(userId, input) {
-      const row = check(await db.from('interviews').insert({
-        user_id: userId, status: 'in_progress', job: input.job, resume: input.resume,
-        resume_path: input.resumePath, started_at: input.startedAt.toISOString(),
-      }).select().single());
-      return toInterview(row as InterviewRow);
+    async startInterview(userId, input, rules) {
+      const out = check(await db.rpc('start_interview', {
+        p_user: userId, p_job: input.job, p_resume: input.resume, p_resume_path: input.resumePath,
+        p_started_at: input.startedAt.toISOString(), p_stale_before: rules.staleBefore.toISOString(),
+        p_unfinished_since: rules.unfinishedSince.toISOString(),
+        p_free_limit: FREE_LIMIT, p_unfinished_limit: UNFINISHED_DAILY_LIMIT,
+      })) as { ok: boolean; code?: 'quota_exhausted' | 'too_many_unfinished'; id?: string };
+      if (!out.ok) return { ok: false, code: out.code! };
+      return { ok: true, interview: { id: out.id!, userId, status: 'in_progress', ...input } };
     },
     async getInterview(userId, id) {
       const row = check(await db.from('interviews').select().eq('id', id).eq('user_id', userId).maybeSingle());

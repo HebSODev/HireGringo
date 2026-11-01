@@ -1,8 +1,11 @@
 import type { Deps, Llm, Storage, Tts } from '../../server/deps';
-import type { Repo } from '../../server/repo';
+import { decideStart } from '../../server/quota';
+import type { Repo, StartInput, StartResult, StartRules } from '../../server/repo';
 import type { Evaluation, Interview, JobSummary, ResumeSummary, Turn } from '../../shared/types';
 
 export const USER = 'user-1';
+/** Nome de arquivo no formato que o frontend gera (uuid). */
+export const FILE = '3f2a9c4e-1111-4222-8333-444455556666';
 export const NOW = new Date('2026-10-31T12:00:00Z');
 
 export const job: JobSummary = {
@@ -20,16 +23,21 @@ export class MemoryRepo implements Repo {
   evaluations = new Map<string, Evaluation>();
   freeUsed = new Map<string, number>();
   unfinishedLast24h = 0;
-  abandonStaleCalls: Date[] = [];
   private nextId = 1;
 
   async getFreeUsed(userId: string) { return this.freeUsed.get(userId) ?? 0; }
-  async abandonStale(_userId: string, olderThan: Date) { this.abandonStaleCalls.push(olderThan); }
-  async countUnfinishedSince() { return this.unfinishedLast24h; }
-  async createInterview(userId: string, input: { job: JobSummary; resume: ResumeSummary; resumePath: string; startedAt: Date }) {
+  async startInterview(userId: string, input: StartInput, rules: StartRules): Promise<StartResult> {
+    const mine = [...this.interviews.values()].filter((i) => i.userId === userId);
+    for (const i of mine) if (i.status === 'in_progress' && i.startedAt < rules.staleBefore) i.status = 'abandoned';
+    const decision = decideStart({
+      freeUsed: await this.getFreeUsed(userId),
+      inProgress: mine.filter((i) => i.status === 'in_progress').length,
+      unfinishedLast24h: this.unfinishedLast24h,
+    });
+    if (!decision.ok) return decision;
     const iv: Interview = { id: `iv-${this.nextId++}`, userId, status: 'in_progress', ...input };
     this.interviews.set(iv.id, iv);
-    return iv;
+    return { ok: true, interview: iv };
   }
   async getInterview(userId: string, id: string) {
     const iv = this.interviews.get(id);
@@ -52,7 +60,7 @@ export class MemoryRepo implements Repo {
   seed(partial: Partial<Interview> = {}): Interview {
     const iv: Interview = {
       id: `iv-${this.nextId++}`, userId: USER, status: 'in_progress', job, resume,
-      resumePath: `${USER}/cv.pdf`, startedAt: NOW, ...partial,
+      resumePath: `${USER}/${FILE}.pdf`, startedAt: NOW, ...partial,
     };
     this.interviews.set(iv.id, iv);
     return iv;

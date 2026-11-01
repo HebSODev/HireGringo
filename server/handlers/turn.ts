@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HARD_LIMIT_SECONDS, INTERVIEW_SECONDS } from '../../shared/constants';
+import { HARD_LIMIT_SECONDS, INTERVIEW_SECONDS, MAX_TURN_TEXT_CHARS } from '../../shared/constants';
 import type { TurnStreamEvent } from '../../shared/types';
 import type { Deps } from '../deps';
 import { ApiError, withErrors } from '../errors';
@@ -15,7 +15,7 @@ const END_ALLOWED_FROM_SEC = INTERVIEW_SECONDS - 60;
 
 const Body = z.object({
   interviewId: z.string().min(1),
-  text: z.string().nullable(),
+  text: z.string().max(MAX_TURN_TEXT_CHARS).nullable(),
   metrics: TurnMetricsSchema.nullable(),
 });
 

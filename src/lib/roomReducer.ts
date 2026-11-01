@@ -12,7 +12,8 @@ export type RoomEvent =
   | { type: 'CANDIDATE_TURN_SENT' } | { type: 'TIME_UP' } | { type: 'FINISHED' }
   | { type: 'FAILED'; code: ClientErrorCode } | { type: 'RETRY_FINISH' };
 
-const ACTIVE: RoomStatus[] = ['starting', 'interviewer_thinking', 'interviewer_speaking', 'listening'];
+/** Estados em que a entrevista já existe no servidor e pode ser encerrada. */
+const ACTIVE: RoomStatus[] = ['interviewer_thinking', 'interviewer_speaking', 'listening'];
 const INTERVIEWER: RoomStatus[] = ['interviewer_thinking', 'interviewer_speaking'];
 
 export function roomReducer(state: RoomState, event: RoomEvent): RoomState {
