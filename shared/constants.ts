@@ -7,3 +7,4 @@ export const STALE_AFTER_MINUTES = 10;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const SILENCE_TIMEOUT_MS = 20_000;
 export const TTS_SAMPLE_RATE = 24_000;
+export const DEEPGRAM_STT_MODEL = 'nova-3';
