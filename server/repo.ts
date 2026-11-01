@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { FREE_LIMIT, UNFINISHED_DAILY_LIMIT } from '../shared/constants';
-import type { Evaluation, Interview, JobSummary, ResumeSummary, Turn } from '../shared/types';
+import { FREE_LIMIT, UNFINISHED_DAILY_LIMIT } from '../shared/constants.js';
+import type { Evaluation, Interview, JobSummary, ResumeSummary, Turn } from '../shared/types.js';
 
 export type StartInput = { job: JobSummary; resume: ResumeSummary; resumePath: string; startedAt: Date };
 /** `staleBefore`: in_progress iniciadas antes disso viram abandoned. `unfinishedSince`: janela das inacabadas. */

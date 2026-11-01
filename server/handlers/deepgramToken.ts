@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { HARD_LIMIT_SECONDS } from '../../shared/constants';
-import type { Deps } from '../deps';
-import { ApiError, json, withErrors } from '../errors';
-import { readJson } from '../http';
+import { HARD_LIMIT_SECONDS } from '../../shared/constants.js';
+import type { Deps } from '../deps.js';
+import { ApiError, json, withErrors } from '../errors.js';
+import { readJson } from '../http.js';
 
 const Body = z.object({ interviewId: z.string().min(1) });
 

@@ -1,5 +1,5 @@
-import type { Bucket } from './deps';
-import { ApiError } from './errors';
+import type { Bucket } from './deps.js';
+import { ApiError } from './errors.js';
 
 const EXT: Record<Bucket, string> = { resumes: 'pdf', 'job-files': 'pdf|png|jpg|webp' };
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

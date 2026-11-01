@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { ApiError } from './errors';
+import { ApiError } from './errors.js';
 
 export async function readJson<T extends z.ZodType>(req: Request, schema: T): Promise<z.infer<T>> {
   let raw: unknown;

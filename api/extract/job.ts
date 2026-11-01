@@ -1,4 +1,4 @@
-import { lazy } from '../../server/deps';
-import { createExtractJobHandler } from '../../server/handlers/extractJob';
+import { lazy } from '../../server/deps.js';
+import { createExtractJobHandler } from '../../server/handlers/extractJob.js';
 
 export const POST = lazy(createExtractJobHandler);

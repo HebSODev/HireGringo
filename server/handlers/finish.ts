@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { HARD_LIMIT_SECONDS, MIN_SECONDS_FOR_RESULT } from '../../shared/constants';
-import type { Deps } from '../deps';
-import { ApiError, json, withErrors } from '../errors';
-import { buildEvaluatorMessages, evaluate } from '../evaluator';
-import { readJson } from '../http';
+import { HARD_LIMIT_SECONDS, MIN_SECONDS_FOR_RESULT } from '../../shared/constants.js';
+import type { Deps } from '../deps.js';
+import { ApiError, json, withErrors } from '../errors.js';
+import { buildEvaluatorMessages, evaluate } from '../evaluator.js';
+import { readJson } from '../http.js';
 
 const Body = z.object({ interviewId: z.string().min(1) });
 

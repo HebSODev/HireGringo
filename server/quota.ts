@@ -1,5 +1,5 @@
-import { ApiError } from './errors';
-import { FREE_LIMIT, UNFINISHED_DAILY_LIMIT } from '../shared/constants';
+import { ApiError } from './errors.js';
+import { FREE_LIMIT, UNFINISHED_DAILY_LIMIT } from '../shared/constants.js';
 
 /** Entrevistas em andamento contam na cota grátis: abrir várias abas não passa do limite. */
 export function decideStart(input: { freeUsed: number; inProgress: number; unfinishedLast24h: number }):

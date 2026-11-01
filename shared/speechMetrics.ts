@@ -1,4 +1,4 @@
-import type { DgWord, TurnMetrics } from './types';
+import type { DgWord, TurnMetrics } from './types.js';
 
 export const FILLERS = new Set(['uh', 'um', 'mhmm', 'mm-mm', 'uh-uh', 'uh-huh', 'nuh-uh', 'hmm', 'er', 'ah']);
 const LOW_CONFIDENCE = 0.6;

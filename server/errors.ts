@@ -1,4 +1,4 @@
-import type { ApiErrorCode } from '../shared/types';
+import type { ApiErrorCode } from '../shared/types.js';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: ApiErrorCode) {

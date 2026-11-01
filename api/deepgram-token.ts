@@ -1,4 +1,4 @@
-import { lazy } from '../server/deps';
-import { createDeepgramTokenHandler } from '../server/handlers/deepgramToken';
+import { lazy } from '../server/deps.js';
+import { createDeepgramTokenHandler } from '../server/handlers/deepgramToken.js';
 
 export const POST = lazy(createDeepgramTokenHandler);

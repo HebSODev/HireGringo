@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { aggregateMetrics } from '../shared/speechMetrics';
-import type { Evaluation, Interview, Turn } from '../shared/types';
-import type { ChatMessage, Llm } from './deps';
-import { ApiError } from './errors';
-import { renderPrompt } from './prompts';
+import { aggregateMetrics } from '../shared/speechMetrics.js';
+import type { Evaluation, Interview, Turn } from '../shared/types.js';
+import type { ChatMessage, Llm } from './deps.js';
+import { ApiError } from './errors.js';
+import { renderPrompt } from './prompts.js';
 
 const Score = z.number().int().min(0).max(10);
 const Text = z.string().trim().min(1);

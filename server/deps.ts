@@ -1,13 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { supabaseAuth, type AuthFn } from './auth';
-import { deepgramGrant } from './deepgram';
-import { openAiCompatibleLlm } from './llm';
-import { loadPrompt } from './prompts';
-import { supabaseRepo, type Repo } from './repo';
-import { supabaseStorage } from './storage';
-import { deepgramTts } from './tts';
-import { fetchPage } from './extract/url';
-import { pdfToText } from './extract/pdf';
+import { supabaseAuth, type AuthFn } from './auth.js';
+import { deepgramGrant } from './deepgram.js';
+import { openAiCompatibleLlm } from './llm.js';
+import { loadPrompt } from './prompts.js';
+import { supabaseRepo, type Repo } from './repo.js';
+import { supabaseStorage } from './storage.js';
+import { deepgramTts } from './tts.js';
+import { fetchPage } from './extract/url.js';
+import { pdfToText } from './extract/pdf.js';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 

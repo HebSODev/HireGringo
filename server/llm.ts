@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import { ApiError } from './errors';
-import type { ChatMessage, Llm } from './deps';
+import { ApiError } from './errors.js';
+import type { ChatMessage, Llm } from './deps.js';
 
 /** Para modelos de raciocínio (gpt-oss), reduz o raciocínio para a 1ª frase sair rápido. */
 const reasoning = (model: string) => (model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' as const } : {});

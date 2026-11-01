@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { MAX_JOB_TEXT_CHARS } from '../../shared/constants';
-import { assertCanExtract } from '../quota';
-import type { Deps } from '../deps';
-import { ApiError, json, withErrors } from '../errors';
-import { htmlToText } from '../extract/html';
-import { assertFetchableUrl } from '../extract/url';
-import { readJson } from '../http';
-import { assertOwnedPath } from '../paths';
-import { renderPrompt } from '../prompts';
-import { JobSummarySchema } from '../schemas';
+import { MAX_JOB_TEXT_CHARS } from '../../shared/constants.js';
+import { assertCanExtract } from '../quota.js';
+import type { Deps } from '../deps.js';
+import { ApiError, json, withErrors } from '../errors.js';
+import { htmlToText } from '../extract/html.js';
+import { assertFetchableUrl } from '../extract/url.js';
+import { readJson } from '../http.js';
+import { assertOwnedPath } from '../paths.js';
+import { renderPrompt } from '../prompts.js';
+import { JobSummarySchema } from '../schemas.js';
 
 const Body = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string().trim().min(1).max(MAX_JOB_TEXT_CHARS) }),

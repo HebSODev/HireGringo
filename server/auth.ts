@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ApiError } from './errors';
+import { ApiError } from './errors.js';
 
 export type AuthFn = (req: Request) => Promise<{ userId: string }>;
 

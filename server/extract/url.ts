@@ -1,7 +1,7 @@
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { isIP, isIPv4 } from 'node:net';
 import { Agent, fetch as undiciFetch } from 'undici';
-import { ApiError } from '../errors';
+import { ApiError } from '../errors.js';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_REDIRECTS = 3;

@@ -1,5 +1,5 @@
-import type { Deps } from '../deps';
-import { withErrors } from '../errors';
+import type { Deps } from '../deps.js';
+import { withErrors } from '../errors.js';
 
 export function createDeleteAccountHandler(deps: Deps & { adminDeleteUser(userId: string): Promise<void> }) {
   return withErrors(async (req) => {

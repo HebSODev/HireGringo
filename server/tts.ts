@@ -1,5 +1,5 @@
-import { TTS_SAMPLE_RATE } from '../shared/constants';
-import type { Tts } from './deps';
+import { TTS_SAMPLE_RATE } from '../shared/constants.js';
+import type { Tts } from './deps.js';
 
 /** Deepgram Aura em PCM 16-bit LE mono, repassando os chunks conforme chegam. */
 export function deepgramTts(opts: { apiKey: string; model: string }): Tts {

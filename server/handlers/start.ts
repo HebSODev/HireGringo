@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { STALE_AFTER_MINUTES } from '../../shared/constants';
-import type { Deps } from '../deps';
-import { ApiError, json, withErrors } from '../errors';
-import { readJson } from '../http';
-import { JobSummarySchema, ResumeSummarySchema } from '../schemas';
-import { assertOwnedPath } from '../paths';
+import { STALE_AFTER_MINUTES } from '../../shared/constants.js';
+import type { Deps } from '../deps.js';
+import { ApiError, json, withErrors } from '../errors.js';
+import { readJson } from '../http.js';
+import { JobSummarySchema, ResumeSummarySchema } from '../schemas.js';
+import { assertOwnedPath } from '../paths.js';
 
 const Body = z.object({ job: JobSummarySchema, resume: ResumeSummarySchema, resumePath: z.string().min(1) });
 

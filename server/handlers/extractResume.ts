@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { assertCanExtract } from '../quota';
-import type { Deps } from '../deps';
-import { ApiError, json, withErrors } from '../errors';
-import { readJson } from '../http';
-import { assertOwnedPath } from '../paths';
-import { renderPrompt } from '../prompts';
-import { ResumeSummarySchema } from '../schemas';
+import { assertCanExtract } from '../quota.js';
+import type { Deps } from '../deps.js';
+import { ApiError, json, withErrors } from '../errors.js';
+import { readJson } from '../http.js';
+import { assertOwnedPath } from '../paths.js';
+import { renderPrompt } from '../prompts.js';
+import { ResumeSummarySchema } from '../schemas.js';
 
 const Body = z.object({ path: z.string().min(1) });
 const MIN_TEXT = 200;

@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { HARD_LIMIT_SECONDS, INTERVIEW_SECONDS, MAX_TURN_TEXT_CHARS } from '../../shared/constants';
-import type { TurnStreamEvent } from '../../shared/types';
-import type { Deps } from '../deps';
-import { ApiError, withErrors } from '../errors';
-import { readJson } from '../http';
-import { buildInterviewerMessages, END_MARKER } from '../interviewer';
-import { TurnMetricsSchema } from '../schemas';
-import { createSentenceChunker } from '../sentenceChunker';
+import { HARD_LIMIT_SECONDS, INTERVIEW_SECONDS, MAX_TURN_TEXT_CHARS } from '../../shared/constants.js';
+import type { TurnStreamEvent } from '../../shared/types.js';
+import type { Deps } from '../deps.js';
+import { ApiError, withErrors } from '../errors.js';
+import { readJson } from '../http.js';
+import { buildInterviewerMessages, END_MARKER } from '../interviewer.js';
+import { TurnMetricsSchema } from '../schemas.js';
+import { createSentenceChunker } from '../sentenceChunker.js';
 
 /** O entrevistador fala no máximo isso por turno, e para na primeira pergunta; o resto do stream é descartado. */
 const MAX_SENTENCES = 4;

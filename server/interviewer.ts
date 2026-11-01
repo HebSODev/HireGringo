@@ -1,8 +1,8 @@
-import { INTERVIEW_SECONDS } from '../shared/constants';
-import type { Interview, Turn } from '../shared/types';
-import type { ChatMessage } from './deps';
-import { phaseFor } from './interviewPhase';
-import { renderPrompt } from './prompts';
+import { INTERVIEW_SECONDS } from '../shared/constants.js';
+import type { Interview, Turn } from '../shared/types.js';
+import type { ChatMessage } from './deps.js';
+import { phaseFor } from './interviewPhase.js';
+import { renderPrompt } from './prompts.js';
 
 export const END_MARKER = '[END]';
 const OPENING = '(The call has just connected. Start the interview.)';

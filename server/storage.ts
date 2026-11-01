@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Storage } from './deps';
+import type { Storage } from './deps.js';
 
 export function supabaseStorage(db: SupabaseClient): Storage {
   return {

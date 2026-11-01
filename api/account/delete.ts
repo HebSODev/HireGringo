@@ -1,5 +1,5 @@
-import { lazy, supabaseAdmin } from '../../server/deps';
-import { createDeleteAccountHandler } from '../../server/handlers/deleteAccount';
+import { lazy, supabaseAdmin } from '../../server/deps.js';
+import { createDeleteAccountHandler } from '../../server/handlers/deleteAccount.js';
 
 export const POST = lazy((deps) =>
   createDeleteAccountHandler({
