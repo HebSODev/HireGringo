@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAuth, type AuthFn } from './auth';
 import { deepgramGrant } from './deepgram';
 import { openAiCompatibleLlm } from './llm';
@@ -48,11 +48,18 @@ function env(name: string): string {
   return v;
 }
 
+let admin: SupabaseClient | null = null;
+
+/** Client com a secret key (ignora RLS): só no servidor. */
+export function supabaseAdmin(): SupabaseClient {
+  return (admin ??= createClient(env('SUPABASE_URL'), env('SUPABASE_SECRET_KEY'), { auth: { persistSession: false } }));
+}
+
 let cached: Deps | null = null;
 
 export function realDeps(): Deps {
   if (cached) return cached;
-  const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SECRET_KEY'), { auth: { persistSession: false } });
+  const db = supabaseAdmin();
   cached = {
     auth: supabaseAuth(db),
     repo: supabaseRepo(db),
