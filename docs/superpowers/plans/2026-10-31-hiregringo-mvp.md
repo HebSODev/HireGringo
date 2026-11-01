@@ -69,7 +69,7 @@ O objetivo é medir, antes de construir o resto, se Node na Vercel entrega a pri
 - Create (descartável): `api/spike.ts`, `scripts/spike-latency.ts`
 
 **Interfaces:**
-- Produces: projeto Vite React TS + Tailwind; `vercel.json` com `functions` (`api/interviews/turn.ts` e `api/interviews/finish.ts`: `maxDuration: 60`; `api/extract/*.ts`: `maxDuration: 30`; todos com `includeFiles: "prompts/**"`); `.env.example` com `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (formato novo `sb_secret_…`, substitui a service role), `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `LLM_BASE_URL=https://api.groq.com/openai/v1`, `LLM_API_KEY`, `LLM_MODEL=llama-3.3-70b-versatile`, `VISION_MODEL`, `DEEPGRAM_API_KEY`, `TTS_MODEL=aura-2-thalia-en`, `DEEPGRAM_STT_MODEL=nova-3`.
+- Produces: projeto Vite React TS + Tailwind; `vercel.json` com `functions` (`api/interviews/turn.ts` e `api/interviews/finish.ts`: `maxDuration: 60`; `api/extract/*.ts`: `maxDuration: 30`; todos com `includeFiles: "prompts/**"`); `.env.example` com `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (formato novo `sb_secret_…`, substitui a service role), `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `LLM_BASE_URL=https://api.groq.com/openai/v1`, `LLM_API_KEY`, `LLM_MODEL=openai/gpt-oss-120b`, `VISION_MODEL`, `DEEPGRAM_API_KEY`, `TTS_MODEL=aura-2-thalia-en`, `DEEPGRAM_STT_MODEL=nova-3`.
 
 - [ ] **Step 1: Confirmar as APIs dos provedores na documentação atual (via context7/WebSearch) e anotar no topo de `scripts/spike-latency.ts`:**
   - endpoint de token temporário do Deepgram (esperado `POST https://api.deepgram.com/v1/auth/grant`, `{ ttl_seconds }`, retorno `{ access_token, expires_in }`) e como o navegador o usa no WebSocket (esperado subprotocol `["bearer", token]`);
@@ -110,7 +110,7 @@ O objetivo é medir, antes de construir o resto, se Node na Vercel entrega a pri
   export type Turn = { seq: number; role: 'interviewer' | 'candidate'; text: string; metrics: TurnMetrics | null };
   export type Interview = { id: string; userId: string; status: InterviewStatus; job: JobSummary; resume: ResumeSummary; resumePath: string; startedAt: Date };
   export type Evaluation = { technical: { score: number; justification: string }; english: { score: number; justification: string }; tips: { technical: string[]; english: { said: string; better: string; why: string }[] } };
-  export type TurnStreamEvent = { type: 'text'; text: string } | { type: 'audio'; seq: number; mime: 'audio/mpeg'; data: string } | { type: 'end' } | { type: 'error'; code: ApiErrorCode };
+  export type TurnStreamEvent = { type: 'text'; text: string } | { type: 'audio'; seq: number; data: string } | { type: 'end' } | { type: 'error'; code: ApiErrorCode };
   export type ApiErrorCode = 'unauthorized' | 'forbidden' | 'not_found' | 'bad_request' | 'quota_exhausted' | 'too_many_unfinished' | 'interview_not_active' | 'time_over' | 'resume_unreadable' | 'not_tech_role' | 'url_unreadable' | 'evaluation_failed' | 'upstream_failed';
   ```
 - Produces (`shared/constants.ts`): `INTERVIEW_SECONDS=300`, `HARD_LIMIT_SECONDS=360`, `MIN_SECONDS_FOR_RESULT=120`, `FREE_LIMIT=3`, `UNFINISHED_DAILY_LIMIT=3`, `STALE_AFTER_MINUTES=10`, `MAX_UPLOAD_BYTES=5*1024*1024`, `SILENCE_TIMEOUT_MS=20000`.
@@ -261,14 +261,14 @@ O objetivo é medir, antes de construir o resto, se Node na Vercel entrega a pri
 **Interfaces:**
 - Consumes: `Repo`, `Llm` (Tasks 3 e 5); `createSentenceChunker`, `phaseFor` (Task 4); `TurnStreamEvent` (Task 2).
 - Produces:
-  - `interface Tts { synthesize(text: string): Promise<Uint8Array> }`. A implementação real usa Aura REST com `TTS_MODEL` em mp3.
+  - `interface Tts { synthesize(text: string): AsyncIterable<Uint8Array> }`. A implementação real usa Aura REST com `TTS_MODEL`, `encoding=linear16&sample_rate=24000&container=none`, e repassa os chunks de PCM conforme chegam (ver a decisão do spike na Task 1).
   - `buildInterviewerMessages(input: { template: string; interview: Interview; turns: Turn[]; elapsedSec: number }): ChatMessage[]`. O system é `renderPrompt(template, { job: JSON, resume: JSON, remainingSeconds: max(0, 300 - elapsed), phase: phaseFor(elapsed) })`. Os turnos do entrevistador viram `assistant` e os do candidato viram `user`. Turno silencioso vira `'(candidate stayed silent)'`.
   - `END_MARKER = '[END]'`
   - `createTurnHandler(deps)`: `POST { interviewId, text: string | null, metrics: TurnMetrics | null }` → `200`, `content-type: application/x-ndjson`, uma linha JSON `TurnStreamEvent` por evento.
   - Regras:
     - `text: null` só é aceito quando ainda não há turnos (abertura). Caso contrário, 400.
     - O turno do candidato é salvo antes de chamar o LLM.
-    - Cada frase do chunker vira um evento `text` e depois um `audio` com `seq` crescente. A síntese de cada frase começa assim que a frase fica pronta, mas os eventos `audio` saem na ordem.
+    - Cada frase do chunker vira um evento `text` seguido dos eventos `audio` dos chunks PCM daquela frase (`data` = base64 de PCM 16-bit little-endian mono 24 kHz), com `seq` global crescente. A síntese de cada frase começa assim que a frase fica pronta, mas os eventos saem na ordem das frases.
     - `[END]` é removido do texto falado e salvo, e emite `{type:'end'}` no final.
     - A fala completa do entrevistador é salva como um turno ao final do stream.
     - Falha de LLM ou TTS no meio do stream emite `{type:'error', code:'upstream_failed'}` e fecha.
@@ -287,8 +287,8 @@ O objetivo é medir, antes de construir o resto, se Node na Vercel entrega a pri
   // turn.test.ts — llm.stream rende ['Hello there. ', 'Tell me about', ' yourself. [END]'], tts devolve bytes do texto
   const events = await readAll(res); // parse NDJSON
   expect(events).toEqual([
-    { type: 'text', text: 'Hello there.' }, { type: 'audio', seq: 0, mime: 'audio/mpeg', data: b64('Hello there.') },
-    { type: 'text', text: 'Tell me about yourself.' }, { type: 'audio', seq: 1, mime: 'audio/mpeg', data: b64('Tell me about yourself.') },
+    { type: 'text', text: 'Hello there.' }, { type: 'audio', seq: 0, data: b64('Hello there.') },
+    { type: 'text', text: 'Tell me about yourself.' }, { type: 'audio', seq: 1, data: b64('Tell me about yourself.') },
     { type: 'end' },
   ]);
   expect(repo.turns.at(-1)).toMatchObject({ role: 'interviewer', text: 'Hello there. Tell me about yourself.' });
@@ -420,7 +420,8 @@ O objetivo é medir, antes de construir o resto, se Node na Vercel entrega a pri
 - Consumes: `start`, `deepgram-token`, `turn` e `finish` (Tasks 3, 6 e 7); `computeTurnMetrics` (Task 4).
 - Produces:
   - `readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncIterable<T>`: lida com linhas partidas entre chunks.
-  - `createAudioQueue(player: { decode(b: ArrayBuffer): Promise<AudioBuffer>; play(buf: AudioBuffer): Promise<void> }): { enqueue(seq: number, base64: string): void; markStreamDone(): void; onIdle(cb: () => void): void; reset(): void }`. Toca estritamente na ordem de `seq`. `onIdle` dispara quando o stream terminou e a fila esvaziou.
+  - `pcm16ToFloat32(bytes: Uint8Array): Float32Array` (PCM 16-bit LE → [-1, 1]; um byte ímpar no fim fica guardado para o próximo chunk pelo chamador).
+  - `createAudioQueue(player: { play(samples: Float32Array): Promise<void> }): { enqueue(seq: number, base64: string): void; markStreamDone(): void; onIdle(cb: () => void): void; reset(): void }`. Toca estritamente na ordem de `seq`. `onIdle` dispara quando o stream terminou e a fila esvaziou. O player real agenda `AudioBuffer`s de 24 kHz em sequência num `AudioContext`.
   - `type RoomStatus = 'idle' | 'requesting_mic' | 'starting' | 'interviewer_thinking' | 'interviewer_speaking' | 'listening' | 'finishing' | 'done' | 'error'`
   - `roomReducer(state: { status: RoomStatus; error?: ApiErrorCode | 'mic_denied' }, event: RoomEvent)`. Eventos:
     - `MIC_REQUESTED`, `MIC_DENIED`, `MIC_OK`, `STARTED`;
