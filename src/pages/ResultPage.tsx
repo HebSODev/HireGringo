@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Evaluation, JobSummary, Turn } from '../../shared/types';
+import { FeedbackCard } from '../components/FeedbackCard';
 import { Button, Card, ErrorBox, Spinner } from '../components/ui';
 import { supabase } from '../lib/supabase';
 
@@ -89,6 +90,8 @@ export function ResultPage() {
           ))}
         </div>
       </details>
+
+      <FeedbackCard interviewId={id!} />
 
       <Link to="/"><Button variant="secondary">Voltar ao início</Button></Link>
     </div>

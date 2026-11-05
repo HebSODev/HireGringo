@@ -6,7 +6,7 @@ export function createDeleteAccountHandler(deps: Deps & { adminDeleteUser(userId
     const { userId } = await deps.auth(req);
     await deps.storage.removePrefix('resumes', `${userId}/`);
     await deps.storage.removePrefix('job-files', `${userId}/`);
-    // As linhas do banco (profile, entrevistas, turnos, resultados) caem em cascata com o usuário.
+    // As linhas do banco (profile, entrevistas, turnos, resultados, avaliações) caem em cascata com o usuário.
     await deps.adminDeleteUser(userId);
     return new Response(null, { status: 204 });
   });

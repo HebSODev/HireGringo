@@ -102,4 +102,25 @@ describe.skipIf(!run)('RLS e cota no Supabase', { timeout: 30_000 }, () => {
     const r2 = await a.client.rpc('complete_interview', { p_interview_id: crypto.randomUUID(), p_evaluation: evaluation });
     expect(r2.error).not.toBeNull();
   });
+
+  it('avaliação: só em entrevista concluída própria, nota em meias estrelas, sem ler a de outro', async () => {
+    const a = await makeUser('h');
+    const b = await makeUser('i');
+    const done = await makeInterview(a.id, 'completed');
+    const running = await makeInterview(a.id);
+
+    expect((await a.client.from('feedback').insert({ interview_id: running, rating: 4 })).error).not.toBeNull();
+    expect((await b.client.from('feedback').insert({ interview_id: done, rating: 4 })).error).not.toBeNull();
+    expect((await a.client.from('feedback').insert({ interview_id: done, rating: 3.3 })).error).not.toBeNull();
+    expect((await a.client.from('feedback').insert({ interview_id: done, rating: 0 })).error).not.toBeNull();
+
+    expect((await a.client.from('feedback').insert({ interview_id: done, rating: 3.5, comment: 'bom' })).error).toBeNull();
+    expect((await a.client.from('feedback').update({ rating: 4.5 }).eq('interview_id', done)).error).toBeNull();
+    const { data } = await admin.from('feedback').select('rating, user_id').eq('interview_id', done).single();
+    expect(Number(data!.rating)).toBe(4.5);
+    expect(data!.user_id).toBe(a.id);
+
+    expect((await b.client.from('feedback').select('rating').eq('interview_id', done)).data).toEqual([]);
+    expect((await a.client.from('feedback').update({ user_id: b.id }).eq('interview_id', done)).error).not.toBeNull();
+  });
 });
